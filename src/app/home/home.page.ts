@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import {
@@ -22,7 +22,8 @@ import {
   IonButtons,
   IonIcon,
   IonBadge,
-  IonModal
+  IonModal,
+  IonLabel
 } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
 import {
@@ -34,6 +35,7 @@ import {
 } from 'ionicons/icons';
 import { BookingRequest, AVAILABLE_SERVICES, ServiceCategory } from '../models/booking-request.model';
 import { FeedbackService } from '../services/feedback.service';
+import { ApiService, RandomUser } from '../services/api.service';
 
 @Component({
   selector: 'app-home',
@@ -63,11 +65,13 @@ import { FeedbackService } from '../services/feedback.service';
     IonButtons,
     IonIcon,
     IonBadge,
-    IonModal
+    IonModal,
+    IonLabel
   ]
 })
-export class HomePage {
+export class HomePage implements OnInit {
   private readonly feedbackService = inject(FeedbackService);
+  private readonly apiService = inject(ApiService);
 
   readonly services: ServiceCategory[] = AVAILABLE_SERVICES;
 
@@ -79,6 +83,11 @@ export class HomePage {
   };
 
   isTermsModalOpen: boolean = false;
+  
+  // Arreglo para almacenar los datos obtenidos de la API (GET)
+  items: RandomUser[] = [];
+  isLoadingItems = true;
+  apiError = '';
 
   constructor() {
     addIcons({
@@ -90,10 +99,25 @@ export class HomePage {
     });
   }
 
+  ngOnInit() {
+    // Consumir la API al iniciar el componente (GET)
+    this.apiService.getItems().subscribe({
+      next: (data) => {
+        this.items = data;
+        this.isLoadingItems = false;
+        console.log('Datos cargados con éxito:', this.items);
+      },
+      error: (err) => {
+        console.error('Error al obtener los datos:', err);
+        this.apiError = 'No se pudieron cargar los perfiles aleatorios.';
+        this.isLoadingItems = false;
+      }
+    });
+  }
+
   setTermsModalOpen(isOpen: boolean): void {
     this.isTermsModalOpen = isOpen;
   }
-
 
   async enviarSolicitud(): Promise<void> {
     const trimmedName = this.formData.fullName ? this.formData.fullName.trim() : '';
@@ -116,7 +140,7 @@ export class HomePage {
       <strong>Servicio:</strong> ${serviceName}<br>
       <strong>Notificaciones SMS:</strong> ${smsStatusText}<br>
       <strong>Términos:</strong> Aceptados correctamente.<br><br>
-      <em>¡Tu registro ha quedado almacenado en memoria con éxito!</em>
+      <em>¡Tu registro ha quedado almacenado con éxito!</em>
     `;
 
     await this.feedbackService.showAlert(
